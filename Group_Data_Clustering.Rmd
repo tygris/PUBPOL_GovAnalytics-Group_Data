@@ -1,0 +1,357 @@
+---
+title: "Group_Project_Clustering"
+author: "Natalie Wellen"
+date: "2/25/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r datalink, echo=FALSE}
+#where we can find the data online
+link='https://github.com/reconjohn/evans/raw/master/team_data.rds'
+# a RDS file from the web needs:
+myFile=url(link)
+
+# reading in data:
+REE=readRDS(file = myFile) 
+
+# reset indexes to R format:
+row.names(REE)=NULL
+```
+
+```{r first look, echo=TRUE}
+str(REE) #look at the data
+```
+
+
+```{r set up data, echo=FALSE}
+## ----clusSubset, eval=TRUE-----------------------------------------------
+dfClus=REE[,c(2,3,4)] #the variables we want to use
+
+
+## ----clusRename, eval=TRUE-----------------------------------------------
+row.names(dfClus)=REE$Country #now we can access the country
+```
+
+```{r view set up, echo=TRUE}
+#  without analyzing based on it
+head(dfClus)
+```
+
+
+```{r random seed, echo=FALSE}
+## ----clusSeed, eval=TRUE-------------------------------------------------
+set.seed(999) # this is for replicability of results
+
+
+## ----clusDistance, eval=TRUE---------------------------------------------
+library(cluster)
+#we have to define the distance between our variables before we can cluster it
+dfClus_D=cluster::daisy(x=dfClus,metric="euclidean") 
+#https://www.rdocumentation.org/packages/cluster/versions/2.1.0/topics/daisy
+```
+
+```{r Pam3, echo=FALSE}
+## ----clusPam, eval=TRUE--------------------------------------------------
+NumCluster=3 #for pam we must set the number of clusters ahead of time
+res.pam3 = pam(x=dfClus_D,k = NumCluster,cluster.only = F)
+# cluster.only = F gives you more info to analyze (T only the clusters)
+# we named the result res.pam
+
+## ----cluspamSave, eval=TRUE----------------------------------------------
+REE$pam3=as.factor(res.pam3$clustering) #saves results in the original dataframe
+```
+
+
+```{r Pam3 table, echo=TRUE}
+## ----cluspamREPORTtable, eval=TRUE---------------------------------------
+table(REE$pam3)
+```
+
+```{r Pam3 plot, echo=FALSE}
+## ----cluspamREPORT_silave, eval=TRUE-------------------------------------
+library(factoextra)
+fviz_silhouette(res.pam3)
+```
+
+```{r pam3 neg silh, echo=TRUE}
+## ----cluspamREPORT_datasil, eval=TRUE------------------------------------
+pamEval3=data.frame(res.pam3$silinfo$widths) ## ----cluspamREPORT_silnegative, eval=TRUE--------------------------------
+pamEval3[pamEval3$sil_width<0,] #look at who does not belong
+```
+
+```{r pam5, echo=FALSE}
+## ----clusPam, eval=TRUE--------------------------------------------------
+NumCluster=5 #for pam we must set the number of clusters ahead of time
+res.pam5 = pam(x=dfClus_D,k = NumCluster,cluster.only = F)
+
+## ----cluspamSave, eval=TRUE----------------------------------------------
+REE$pam5=as.factor(res.pam5$clustering) #saves results in the original dataframe
+```
+
+```{r pam5 table, echo=TRUE}
+## ----cluspamREPORTtable, eval=TRUE---------------------------------------
+table(REE$pam5)
+```
+
+# Cluster Groups for PAM5
+We would also like the lists for each cluster of the countries.
+
+```{r pam cluster 1 list, echo=TRUE}
+REE[which(REE$pam5==1), names(REE) %in% c('Country','ReligionImportant', 'EducationIndex', 'taxRevenuePercentGDP')]
+
+summary(REE[which(REE$pam5==1), names(REE) %in% c('Country','ReligionImportant', 'EducationIndex', 'taxRevenuePercentGDP')])
+```
+```{r pam cluster 2 list, echo=TRUE}
+REE[which(REE$pam5==2), names(REE) %in% c('Country','ReligionImportant', 'EducationIndex', 'taxRevenuePercentGDP')]
+
+summary(REE[which(REE$pam5==2), names(REE) %in% c('Country','ReligionImportant', 'EducationIndex', 'taxRevenuePercentGDP')])
+```
+
+```{r pam cluster 3 list, echo=TRUE}
+REE[which(REE$pam5==3), names(REE) %in% c('Country','ReligionImportant', 'EducationIndex', 'taxRevenuePercentGDP')]
+
+summary(REE[which(REE$pam5==3), names(REE) %in% c('Country','ReligionImportant', 'EducationIndex', 'taxRevenuePercentGDP')])
+```
+
+```{r pam cluster 4 list, echo=TRUE}
+REE[which(REE$pam5==4), names(REE) %in% c('Country','ReligionImportant', 'EducationIndex', 'taxRevenuePercentGDP')]
+
+summary(REE[which(REE$pam5==4), names(REE) %in% c('Country','ReligionImportant', 'EducationIndex', 'taxRevenuePercentGDP')])
+```
+
+```{r pam cluster 5 list, echo=TRUE}
+REE[which(REE$pam5==5), names(REE) %in% c('Country','ReligionImportant', 'EducationIndex', 'taxRevenuePercentGDP')]
+
+summary(REE[which(REE$pam5==5), names(REE) %in% c('Country','ReligionImportant', 'EducationIndex', 'taxRevenuePercentGDP')])
+```
+
+
+```{r pam5 plot, echo=TRUE}
+## ----cluspamREPORT_silave, eval=TRUE-------------------------------------
+#library(factoextra)
+fviz_silhouette(res.pam5)
+```
+
+```{r pam5 neg silh, echo=TRUE}
+## ----cluspamREPORT_datasil, eval=TRUE------------------------------------
+pamEval5=data.frame(res.pam5$silinfo$widths)
+
+## ----cluspamREPORT_silnegative, eval=TRUE--------------------------------
+pamEval5[pamEval5$sil_width<0,] #look at who does not belong
+```
+
+```{r Pam7, echo=FALSE}
+## ----clusPam, eval=TRUE--------------------------------------------------
+NumCluster=7 #for pam we must set the number of clusters ahead of time
+res.pam7 = pam(x=dfClus_D,k = NumCluster,cluster.only = F)
+
+## ----cluspamSave, eval=TRUE----------------------------------------------
+REE$pam7=as.factor(res.pam7$clustering) #saves results in the original dataframe
+```
+
+```{r Pam7 table, echo=TRUE}
+## ----cluspamREPORTtable, eval=TRUE---------------------------------------
+table(REE$pam7)
+```
+
+
+```{r Pam7 plot, echo=FALSE}
+## ----cluspamREPORT_silave, eval=TRUE-------------------------------------
+library(factoextra)
+fviz_silhouette(res.pam7)
+```
+
+```{r pam7 neg silh, echo=TRUE}
+## ----cluspamREPORT_datasil, eval=TRUE------------------------------------
+pamEval7=data.frame(res.pam7$silinfo$widths) 
+## ----cluspamREPORT_silnegative, eval=TRUE--------------------------------
+pamEval7[pamEval7$sil_width<0,] #look at who does not belong
+```
+
+```{r agnes, echo=FALSE}
+## ----clusagn, eval=TRUE--------------------------------------------------
+library(factoextra)
+NumCluster = 5
+res.agnes= hcut(dfClus_D, k = NumCluster,isdiss=T,
+                hc_func='agnes',
+                hc_method = "ward.D2")
+
+
+## ----clusagnSave, eval=TRUE----------------------------------------------
+REE$agn=as.factor(res.agnes$cluster)
+```
+
+```{r agnes table, echo=TRUE}
+## ----clusagnREPORTtable, eval=TRUE---------------------------------------
+table(REE$agn)
+```
+
+```{r agnes plot, echo=TRUE}
+## ----clusagnREPORTdendo, eval=TRUE---------------------------------------
+fviz_dend(res.agnes,k=NumCluster, cex = 0.7, horiz = T)
+
+
+## ----clusagnREPORTsilave, eval=TRUE--------------------------------------
+library(factoextra)
+fviz_silhouette(res.agnes)
+```
+
+```{r agnes neg silh, echo=TRUE}
+## ----clusagnREPORTsildata, eval=TRUE-------------------------------------
+agnEval=data.frame(res.agnes$silinfo$widths)
+
+## ----clusagnREPORTsilnega, eval=TRUE-------------------------------------
+agnEval[agnEval$sil_width<0,]
+```
+
+```{r diana, echo=FALSE}
+## ----clusdia, eval=TRUE--------------------------------------------------
+library(factoextra)
+
+res.diana= hcut(dfClus_D, k = NumCluster,
+                hc_func='diana',
+                hc_method = "ward.D")
+
+
+## ----clusdiaSave, eval=TRUE----------------------------------------------
+REE$dia=as.factor(res.diana$cluster)
+```
+
+```{r diana table, echo=TRUE}
+## ----clusdiaREPORTtable, eval=TRUE---------------------------------------
+table(REE$dia)
+```
+
+```{r diana plot, echo=TRUE}
+## ----clusdiaREPORTdendo, eval=TRUE---------------------------------------
+fviz_dend(res.diana,k=NumCluster, cex = 0.7, horiz = T)
+
+## ----clusdiaREPORTavesil, eval=TRUE--------------------------------------
+library(factoextra)
+fviz_silhouette(res.diana)
+```
+
+```{r diana neg silh, echo=TRUE}
+## ----clusdiaREPORTdata, eval=TRUE----------------------------------------
+diaEval=data.frame(res.diana$silinfo$widths)
+
+## ----clusdiaREPORTsilnega, eval=TRUE-------------------------------------
+diaEval[diaEval$sil_width<0,]
+```
+
+```{r dbscan, echo=TRUE}
+## ----clusdbKNN, eval=TRUE------------------------------------------------
+library(dbscan)
+#minNeighs> num cols in data
+minNeighs=3 #the min num of neighbors a point needs to be in a cluster
+kNNdistplot(dfClus_D, k = minNeighs)
+abline(h=.13, col = "red", lty=2) # h = epsilon, decided using kNN plot above (red dashed line)
+```
+
+```{r dbscan results, echo=FALSE}
+## ----clusdb, eval=TRUE---------------------------------------------------
+distance=0.05
+res.db = dbscan::dbscan(dfClus_D, eps=distance, 
+                        minPts=minNeighs)
+
+## ----clusdbREPORT, eval=TRUE---------------------------------------------
+res.db
+```
+
+```{r plot distance, echo=TRUE}
+## ----clusdbSave, eval=TRUE-----------------------------------------------
+REE$db=as.factor(res.db$cluster)
+
+
+## ----cmdMap, eval=TRUE---------------------------------------------------
+projectedData = cmdscale(dfClus_D, k=2)
+#
+# save coordinates to original data frame:
+REE$dim1 = projectedData[,1]
+REE$dim2 = projectedData[,2]
+
+
+## ----plotCmdmap, eval=TRUE-----------------------------------------------
+base= ggplot(data=REE,
+             aes(x=dim1, y=dim2,
+                 label=Country)) 
+base + geom_text(size=2)
+
+```
+
+```{r plot num clusterings, echo=TRUE}
+## ----plotpam, eval=TRUE--------------------------------------------------
+pamPlot=base + labs(title = "PAM") + geom_point(size=2,
+                                                aes(color=pam5),
+                                                show.legend = F)  
+
+
+## ----plotagn, eval=TRUE--------------------------------------------------
+agnPlot=base + labs(title = "AGNES") + geom_point(size=2,
+                                                  aes(color=agn),
+                                                  show.legend = F) 
+
+
+## ----plotdia, eval=TRUE--------------------------------------------------
+diaPlot=base + labs(title = "DIANA") + geom_point(size=2,
+                                                  aes(color=dia),
+                                                  show.legend = F) 
+
+
+## ----plotcompare, eval=TRUE----------------------------------------------
+library(ggpubr)
+ggarrange(pamPlot, agnPlot, diaPlot,ncol = 3)
+```
+
+```{r plot dbscan, echo=TRUE}
+## ----plotdb, eval=TRUE---------------------------------------------------
+dbPlot= base + labs(title = "DBSCAN") + geom_point(aes(color=db),
+                                                   show.legend = T) 
+dbPlot
+
+
+## ----plotdb_annot1, eval=TRUE--------------------------------------------
+library(ggrepel)
+dbPlot + geom_text_repel(size=3,aes(label=Country))
+
+
+## ----plotdb_annot2, eval=TRUE--------------------------------------------
+LABEL=ifelse(REE$db==0,REE$Country,"")
+
+dbPlot + geom_text_repel(aes(label=LABEL))
+```
+
+Now we are going to prep for making the slides. To do this I want to get statistics on our variables. 
+
+```{r summary REE, echo=TRUE}
+summary(REE)
+```
+
+1. step is to get the merged data from github and  
+
+```{r control merge, echo = FALSE}
+myLink2 = 'https://github.com/tygris/PUBPOL_GovAnalytics-Group_Data/raw/master/Controls.RDS'
+# a RDS file from the web needs:
+myFile=url(myLink2)
+
+# reading in data:
+control=readRDS(file = myFile) 
+
+# reset indexes to R format:
+row.names(control)=NULL
+
+# set the row names to the country names
+controlVar = control[,c(2,3,4)]
+row.names(controlVar)=control$Country
+
+controlVar=controlVar[complete.cases(controlVar[ ,3]),]
+summary(controlVar)
+
+table(control$Continent)
+```

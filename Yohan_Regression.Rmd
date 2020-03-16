@@ -1,0 +1,393 @@
+<br> 
+<center><img src="http://i.imgur.com/sSaOozN.png" width="500"></center>
+
+
+## Course:  COMPUTATIONAL THINKING FOR GOVERNANCE ANALYTICS
+
+### Prof. José Manuel Magallanes, PhD 
+* Visiting Professor of Computational Policy at Evans School of Public Policy and Governance, and eScience Institute Senior Data Science Fellow, University of Washington.
+* Professor of Government and Political Methodology, Pontificia Universidad Católica del Perú. 
+
+
+_____
+<a id='part1'></a>
+
+# Session 6: Intro to R (III)
+
+
+Collect the data we prepared in Python:
+
+```{r, eval=T}
+library(magrittr)
+library(dplyr)
+link='https://github.com/reconjohn/evans/raw/master/team_data.rds'
+# a RDS file from the web needs:
+myFile=url(link)
+
+# reading in data:
+fromPy=readRDS(file = myFile)
+
+row.names(data)=NULL
+
+```
+
+Verifying data structure:
+
+```{r, eval=T}
+str(fromPy,width = 70,strict.width='cut')
+plot(fromPy[,c(-1,-5,-9)])
+```
+
+
+# <font color="red">Supervised ML: Regression</font>
+
+## Continuous outcome 
+
+### * __EXPLANATORY APPROACH__
+
+1. State hypotheses:
+
+```{r, eval=T}
+# hypotheses:
+hypo1=formula(ReligionImportant~ EducationIndex + taxRevenuePercentGDP)
+hypo2=formula(ReligionImportant~ EducationIndex + taxRevenuePercentGDP + Continent)
+hypo3=formula(ReligionImportant~ EducationIndex + taxRevenuePercentGDP + Developing)
+# Continent is a control variable (should be nominla) for finding the effects of the other IVs to DV. 
+
+```
+
+
+5. Create subset:
+
+```{r, eval=T}
+DataRegGauss=fromPy[,c(2:5,9)]
+#Rename indexes by country
+row.names(DataRegGauss)=fromPy$Country
+```
+
+6. Compute regression models:
+
+```{r, eval=T}
+#
+# results
+gauss1=glm(hypo1,data = DataRegGauss,family = 'gaussian')
+gauss2=glm(hypo2,data = DataRegGauss,family = 'gaussian')
+gauss3=glm(hypo3,data = DataRegGauss,family = 'gaussian')
+```
+
+7. See results:
+
+* First Hypothesis
+
+```{r, eval=T}
+summary(gauss1)
+```
+
+* Second Hypothesis
+```{r, eval=T}
+summary(gauss2)
+```
+
+* Third Hypothesis
+```{r, eval=T}
+summary(gauss3)
+```
+
+8. Search for _better_ model:
+
+```{r, eval=T}
+anova(gauss2,gauss3,test="Chisq")
+```
+
+Model for the first hypothesis is chosen. You can get the RSquared if needed:
+
+```{r, eval=T}
+library(rsq)
+rsq(gauss3,adj=T)
+```
+
+9. Verify the situation of chosen model:
+
+9.1. Linearity between dependent variable and predictors is assumed, then these dots should follow a linear and horizontal trend:
+```{r, eval=T}
+plot(gauss3,1)
+```
+The linear relationship holds, but it is worth evaluating the outliers.
+
+9.2. Normality of residuals is assumed:
+
+Visual exploration:
+```{r, eval=T}
+plot(gauss3,2)
+```
+
+Mathematical exploration:
+```{r, eval=T}
+shapiro.test(gauss1$residuals)
+```
+
+9.3. Homoscedasticity is assumed, so you need to check if residuals are spread equally along the ranges of predictors:
+
+Visual exploration:
+
+```{r, eval=T}
+plot(gauss1, 3)
+```
+
+Mathematical exploration:
+```{r, eval=T}
+library(lmtest)
+bptest(gauss3)
+```
+
+9.4. We assume that there is no colinearity, that is, that the predictors are not correlated.
+
+
+```{r, eval=T}
+library(car)
+vif(gauss3) # lower than 5 is desirable
+```
+
+9.5. Analize the effect of atypical values. Determine if outliers (points that are far from the rest, but still in the trend) or high-leverage points (far from the trend but close to the rest) are influential:
+
+Visual exploration:
+```{r, eval=T}
+plot(gauss1,6)
+```
+
+Querying:
+```{r, eval=T}
+gaussInf=as.data.frame(influence.measures(gauss3)$is.inf)
+gaussInf[gaussInf$cook.d,]
+```
+
+
+10. Finally, a nice summary plot of your work:
+
+```{r, eval=T}
+library(sjPlot)
+
+plot_models(gauss3,vline.color = "grey")
+```
+
+
+* __PREDICTIVE APPROACH__
+
+
+1. Split the data set:
+
+```{r, eval=T}
+library(caret)
+
+set.seed(123)
+
+selection = createDataPartition(DataRegGauss$ReligionImportant,
+                                p = 0.75,
+                                list = FALSE)
+#
+trainGauss = DataRegGauss[ selection, ]
+#
+testGauss  = DataRegGauss[-selection, ]
+```
+
+2. Regress with train data
+
+Let's use cross validation, applying the regression to five samples from the training data set:
+```{r, eval=T}
+ctrl = trainControl(method = 'cv',number = 5)
+
+gauss1CV = train(hypo3,
+                 data = trainGauss, 
+                 method = 'glm',
+                 trControl = ctrl)
+
+summary(gauss1CV)
+```
+
+3. Evaluate performance
+
+
+```{r, eval=T}
+
+predictedVal<-predict(gauss1CV,testGauss)
+
+postResample(obs = testGauss$ReligionImportant, pred=predictedVal)
+```
+
+
+## Binary outcome 
+
+### * __EXPLANATORY APPROACH__
+
+1. State hypothesis:
+```{r, eval=T}
+hypoDico1=formula(HDIdico~ EducationIndex + taxRevenuePercentGDP)
+hypoDico2=formula(HDIdico~ EducationIndex + taxRevenuePercentGDP + Developing)
+```
+
+2. Rescale or reformat
+
+```{r, eval=T}
+Threshold=median(fromPy$ReligionImportant)
+fromPy$HDIdico=fromPy$ReligionImportant>Threshold
+
+fromPy$HDIdico=factor(fromPy$HDIdico,
+                      levels = c(F,T),
+                      labels = c(0,1))
+```
+
+3. Save columns selected
+```{r, eval=T}
+colsNeededDico=c('HDIdico','EducationIndex','taxRevenuePercentGDP','Developing')
+```
+
+4. Verify data types
+```{r, eval=T}
+str(fromPy[,colsNeededDico])
+```
+
+
+
+5. Create subset:
+
+
+```{r, eval=T}
+DataRegLogis=fromPy[,colsNeededDico]
+#Rename indexes by country
+row.names(DataRegLogis)=fromPy$Country
+```
+
+6. Compute regression models:
+
+```{r, eval=T}
+Logi1=glm(hypoDico1,data = DataRegLogis,family = "binomial")
+Logi2=glm(hypoDico2,data = DataRegLogis,family = "binomial")
+```
+
+7. See results:
+
+* First Hypothesis:
+```{r, eval=T}
+summary(Logi1)
+```
+* Second Hypothesis:
+
+```{r, eval=T}
+summary(Logi2)
+```
+
+8. Search for better model:
+```{r, eval=T}
+lrtest(Logi1,Logi2)
+```
+
+Model for the second hypothesis is chosen. 
+9. Verify the situation of chosen model
+
+9.1. Linearity assumption (Box-Tidwell test)
+
+```{r, eval=T}
+DataRegLogis2=DataRegLogis
+DataRegLogis2$taxTEST=DataRegLogis$taxRevenuePercentGDP*log(DataRegLogis$taxRevenuePercentGDP)
+DataRegLogis2$EduTEST=DataRegLogis$EducationIndex*log(DataRegLogis$EducationIndex)
+
+hypoDicoTest=formula(HDIdico~ taxRevenuePercentGDP + EducationIndex + taxTEST + EduTEST)
+
+summary(glm(hypoDicoTest,data=DataRegLogis2,family = binomial))
+
+```
+
+9.2. We assume that there is no colinearity, that is, that the predictors are not correlated.
+
+```{r, eval=T}
+vif(Logi1)
+```
+
+9.3 Analize the effect of atypical values. Determine if outliers (points that are far from the rest, but still in the trend) or high-leverage points (far from the trend but close to the rest) are influential:
+
+Visual exploration:
+
+```{r, eval=T}
+plot(Logi1,5)
+```
+
+10. Finally, a nice summary plot of your work by computing the marginal effects:
+
+```{r, eval=T}
+library(margins)
+(modelChosen = margins(Logi1))
+```
+
+```{r, eval=T}
+(margins=summary(modelChosen))
+```
+
+
+```{r, eval=T}
+
+base= ggplot(margins,aes(x=factor, y=AME)) + geom_point()
+plot2 = base + theme(axis.text.x = element_text(angle = 80,
+                                              size = 6,
+                                              hjust = 1))
+plot2    
+```
+```{r, eval=T}
+plot2 +  geom_errorbar(aes(ymin=lower, ymax=upper))
+```
+
+### * __PREDICTIVE APPROACH__
+
+
+1. Split the data set:
+```{r, eval=T}
+set.seed(123)
+
+selection = createDataPartition(DataRegLogis$HDIdico,
+                                p = 0.75,
+                                list = FALSE)
+trainLogi = DataRegLogis[selection, ]
+testLogi  = DataRegLogis[-selection, ]
+```
+
+2. Regress with train data
+
+Let’s use cross validation, applying the regression to five samples from the training data set:
+```{r, eval=T}
+set.seed(123)
+ctrl = trainControl(method = 'cv',number = 5)
+
+Logis2CV = train(hypoDico1,
+                 data = trainLogi, 
+                 method = 'glm',
+                 family="binomial",
+                 trControl = ctrl)
+```
+
+3. See results:
+
+```{r, eval=T}
+summary(Logis2CV)
+```
+
+3. Evaluate performance
+
+3.1 Get predictions on test data
+```{r, eval=T}
+
+predictions = predict(Logis2CV,
+                      newdata=testLogi,
+                      type='raw')
+```
+
+3.2 Assess performance 
+```{r, eval=T}
+confusionMatrix(data=predictions,
+                reference=testLogi$HDIdico,
+                positive = "1")
+```
+
+Here is some help for you to interpret the result: 
+
+<iframe src="https://docs.google.com/presentation/d/e/2PACX-1vRyFvA5U2HXC3CGBeKEr209_KLjjdeo8FoKT6BxMsjLNOJwx7YDUmGEpDq1pzfGO7Zizuk5rogUNPgj/embed?start=false&loop=false&delayms=3000" frameborder="0" width="960" height="569" allowfullscreen="true" mozallowfullscreen="true" webkitallowfullscreen="true"></iframe>
+
+
